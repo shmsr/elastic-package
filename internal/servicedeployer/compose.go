@@ -135,7 +135,9 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 		logger.Debug("Tearing down service due to setup error")
 		// Update svcInfo with the latest info before tearing down
 		service.svcInfo = svcInfo
-		service.TearDown(context.WithoutCancel(ctx))
+		if tearDownErr := service.TearDown(context.WithoutCancel(ctx)); tearDownErr != nil {
+			logger.Errorf("Failed to tear down service after setup error: %v", tearDownErr)
+		}
 	}()
 
 	serviceName := svcInfo.Name
@@ -295,20 +297,33 @@ func (s *dockerComposeDeployedService) TearDown(ctx context.Context) error {
 	if seconds := s.shutdownTimeout.Seconds(); seconds > 0 {
 		extraArgs = append(extraArgs, "-t", fmt.Sprintf("%d", int(math.Round(seconds))))
 	}
+
+	// Stop containers first, but don't return early on error - we still need to call Down
+	// to clean up containers and networks even if some containers failed to stop gracefully.
+	var stopErr error
 	if err := p.Stop(ctx, compose.CommandOptions{
 		Env:       opts.Env,
 		ExtraArgs: extraArgs,
 	}); err != nil {
-		return fmt.Errorf("could not stop service using Docker Compose: %w", err)
+		stopErr = fmt.Errorf("could not stop service using Docker Compose: %w", err)
+		logger.Warnf("Stop command failed, continuing with cleanup: %v", stopErr)
 	}
 
 	processServiceContainerLogs(ctx, p, opts, s.svcInfo.Name)
 
+	// Always call Down to ensure containers and networks are removed,
+	// even if Stop failed (e.g., when containers exited unexpectedly).
+	// Use --remove-orphans to clean up any orphaned containers from failed startups.
 	if err := p.Down(ctx, compose.CommandOptions{
 		Env:       opts.Env,
-		ExtraArgs: []string{"--volumes"}, // Remove associated volumes.
+		ExtraArgs: []string{"--volumes", "--remove-orphans"}, // Remove associated volumes and orphaned containers.
 	}); err != nil {
 		return fmt.Errorf("could not shut down service using Docker Compose: %w", err)
+	}
+
+	// Return the stop error if Down succeeded but Stop failed
+	if stopErr != nil {
+		return stopErr
 	}
 	return nil
 }

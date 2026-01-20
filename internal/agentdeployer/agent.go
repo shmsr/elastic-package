@@ -194,7 +194,9 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		logger.Debug("Tearing down service due to setup error")
 		// Update svcInfo with the latest info before tearing down
 		agent.agentInfo = agentInfo
-		agent.TearDown(context.WithoutCancel(ctx))
+		if tearDownErr := agent.TearDown(context.WithoutCancel(ctx)); tearDownErr != nil {
+			logger.Errorf("Failed to tear down agent after setup error: %v", tearDownErr)
+		}
 	}()
 
 	if d.runTestsOnly || d.runTearDown {
@@ -473,7 +475,7 @@ func (s *dockerComposeDeployedAgent) TearDown(ctx context.Context) error {
 
 	if err := p.Down(ctx, compose.CommandOptions{
 		Env:       opts.Env,
-		ExtraArgs: []string{"--volumes"}, // Remove associated volumes.
+		ExtraArgs: []string{"--volumes", "--remove-orphans"}, // Remove associated volumes and orphaned containers.
 	}); err != nil {
 		return fmt.Errorf("could not shut down agent using Docker Compose: %w", err)
 	}

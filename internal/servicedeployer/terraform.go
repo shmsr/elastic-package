@@ -154,7 +154,9 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 		logger.Debug("Tearing down service due to setup error")
 		// Update svcInfo with the latest info before tearing down
 		service.svcInfo = svcInfo
-		service.TearDown(context.WithoutCancel(ctx))
+		if tearDownErr := service.TearDown(context.WithoutCancel(ctx)); tearDownErr != nil {
+			logger.Errorf("Failed to tear down service after setup error: %v", tearDownErr)
+		}
 	}()
 
 	// Boot up service

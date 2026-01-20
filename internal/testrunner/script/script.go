@@ -30,6 +30,7 @@ import (
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/changelog"
 	"github.com/elastic/elastic-package/internal/resources"
@@ -288,8 +289,10 @@ func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeploye
 			ingest.UninstallPipelines(ctx, stk.es.API, pipe.pipes)
 		}
 
-		for _, srv := range srvs {
-			srv.TearDown(ctx)
+		for name, srv := range srvs {
+			if err := srv.TearDown(ctx); err != nil {
+				logger.Errorf("Failed to tear down service %s: %v", name, err)
+			}
 		}
 
 		for ds := range streams {
@@ -298,9 +301,11 @@ func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeploye
 			)
 		}
 
-		for _, installed := range agents {
+		for name, installed := range agents {
 			stk.kibana.RemoveAgent(ctx, installed.enrolled)
-			installed.deployed.TearDown(ctx)
+			if err := installed.deployed.TearDown(ctx); err != nil {
+				logger.Errorf("Failed to tear down agent %s: %v", name, err)
+			}
 			deletePolicies(ctx, stk.kibana, installed)
 		}
 
@@ -315,7 +320,9 @@ func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeploye
 		if stk.external {
 			continue
 		}
-		stk.provider.TearDown(ctx, stack.Options{Profile: stk.profile})
+		if err := stk.provider.TearDown(ctx, stack.Options{Profile: stk.profile}); err != nil {
+			logger.Errorf("Failed to tear down stack provider: %v", err)
+		}
 	}
 }
 

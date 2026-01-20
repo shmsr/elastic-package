@@ -871,7 +871,7 @@ A sample workflow would look like:
 
 By default, `elastic-package test system` command always performs these steps to run tests for a given package:
 1. Setup:
-    - Start the service to be tested with a given configuration (`data_stream/<name>/_dev/test/sytem/test-name-config.yml`) and variant (`_dev/deploy/variants.yml`).
+    - Start the service to be tested with a given configuration (`data_stream/<name>/_dev/test/system/test-name-config.yml`) and variant (`_dev/deploy/variants.yml`).
     - Build and install the package
     - Create the required resources in Elasticsearch to configure the ingestion of data through the Elastic Agent.
         - test policy
@@ -894,7 +894,7 @@ By default, `elastic-package test system` command always performs these steps to
 
 This process is repeated for each combination of:
 - data stream `D`, if the package is of `integration` type.
-- configuration file defined under `_dev/test/sytem` folder.
+- configuration file defined under `_dev/test/system` folder.
 - variant (`_dev/deploy/variants.yml`).
 
 It's possible also to run these steps independently. For that it is required to set which configuration file (`--config-file`)
@@ -911,7 +911,7 @@ Then, each step can be run using one of these flags:
     - Documents in the Data stream will be deleted, so the tests will use the latest documents sent.
     - Elastic Agent is going to be sending documents to Elasticsearch.
     - NOTE: This command can be run several times.
-- Run just the setup (`--tear-down`), after this command:
+- Run just the tear down (`--tear-down`), after this command:
     - Service container is going to be stopped.
     - All changes in Elasticsearch are rollback.
     - Package Data stream is deleted.
@@ -944,7 +944,7 @@ elastic-package stack down -v
 
 #### Running system tests in parallel (technical preview)
 
-By default, `elatic-package` runs every system test defined in the package sequentially.
+By default, `elastic-package` runs every system test defined in the package sequentially.
 This could be changed to allow running in parallel tests. For that it is needed that:
 - system tests cannot be run using the Elastic Agent from the stack.
 - package must define the global test configuration file with these contents to enable system test parallelization:
